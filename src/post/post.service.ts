@@ -12,12 +12,11 @@ export class PostService {
   }
 
   async createPost(createPostDto: CreatePostDto) {
-    const { title, content, author } = createPostDto;
     return this.prisma.post.create({
       data: {
-        title,
-        content,
-        author,
+        title: createPostDto.title,
+        content: createPostDto.content,
+        author: createPostDto.author,
       },
     });
   }
