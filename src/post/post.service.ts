@@ -52,4 +52,23 @@ export class PostService {
 
     return this.prisma.post.delete({ where: { id } });
   }
+
+  async editPost(id: string, createPostDto: CreatePostDto) {
+    const postExists = await this.prisma.post.findUnique({
+      where: { id },
+    });
+
+    if (!postExists) {
+      throw new Error('the post is not found');
+    }
+
+    return this.prisma.post.update({
+      where: { id },
+      data: {
+        title: createPostDto.title,
+        content: createPostDto.content.trim(),
+        author: createPostDto.author,
+      },
+    });
+  }
 }
