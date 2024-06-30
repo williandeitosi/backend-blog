@@ -12,12 +12,13 @@ export class AuthService {
   constructor(private readonly jwtService: JwtService) {}
 
   async validateUser(username: string, password: string): Promise<any> {
-    if (username !== this.adminUser.username) {
-      return null;
+    const usernameExists = username === this.adminUser.username;
+    if (!usernameExists) {
+      throw Error('Email address or password is incorret.');
     }
 
     if (!this.adminUser.password) {
-      return null;
+      throw Error('Email address or password is incorret.');
     }
 
     const validPassword = await bcrypt.compare(
@@ -25,7 +26,7 @@ export class AuthService {
       this.adminUser.password,
     );
     if (!validPassword) {
-      return null;
+      throw Error('Email address or password is incorret.');
     }
     return { username: this.adminUser.username };
   }
@@ -33,7 +34,7 @@ export class AuthService {
   async login(user: any) {
     const payload = { username: user.username };
     return {
-      token: this.jwtService.sign(payload),
+      access_token: this.jwtService.sign(payload),
     };
   }
 }
