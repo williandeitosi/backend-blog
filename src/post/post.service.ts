@@ -1,38 +1,69 @@
 import { CreatePostDto } from './dto/create-post.dto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Post } from '@prisma/client';
 import { format } from 'date-fns';
 import { PrismaService } from 'src/prisma/prisma.service';
+
+interface PaginatedResult<T> {
+  data: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+type FormattedPost = Omit<Post, 'created_at'> & { created_at: string };
 
 @Injectable()
 export class PostService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll() {
-    const allPosts = await this.prisma.post.findMany({
-      orderBy: {
-        created_at: 'desc',
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedResult<Post>> {
+    const skip = (page - 1) * limit;
+    const [posts, total] = await Promise.all([
+      this.prisma.post.findMany({
+        skip,
+        take: limit,
+        orderBy: {
+          created_at: 'desc',
+        },
+      }),
+      this.prisma.post.count(),
+    ]);
+    return {
+      data: posts,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
-    });
-    return allPosts;
+    };
   }
 
-  async createPost(createPostDto: CreatePostDto) {
+  async createPost(createPostDto: CreatePostDto): Promise<Post> {
+    const { title, content, author } = createPostDto;
     return this.prisma.post.create({
       data: {
-        title: createPostDto.title,
-        content: createPostDto.content.trim(),
-        author: createPostDto.author,
+        title,
+        content: content.trim(),
+        author,
       },
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<FormattedPost> {
     const postExists = await this.prisma.post.findUnique({
       where: { id },
     });
 
     if (!postExists) {
-      throw new Error('the post is not found');
+      throw new NotFoundException('post not found');
     }
 
     return {
@@ -42,32 +73,20 @@ export class PostService {
   }
 
   async delete(id: string) {
-    const postExists = await this.prisma.post.findUnique({
-      where: { id },
-    });
-
-    if (!postExists) {
-      throw new Error('the post is not found');
-    }
-
+    await this.findOne(id);
     return this.prisma.post.delete({ where: { id } });
   }
 
-  async editPost(id: string, createPostDto: CreatePostDto) {
-    const postExists = await this.prisma.post.findUnique({
-      where: { id },
-    });
-
-    if (!postExists) {
-      throw new Error('the post is not found');
-    }
+  async editPost(id: string, createPostDto: CreatePostDto): Promise<Post> {
+    const { title, content, author } = createPostDto;
+    await this.findOne(id);
 
     return this.prisma.post.update({
       where: { id },
       data: {
-        title: createPostDto.title,
-        content: createPostDto.content.trim(),
-        author: createPostDto.author,
+        title,
+        content: content.trim(),
+        author,
       },
     });
   }
